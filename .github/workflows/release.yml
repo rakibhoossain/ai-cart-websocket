@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Get version
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Build multi-platform binaries
+      run: |
+        export VERSION=${{ steps.version.outputs.VERSION }}
+        chmod +x build.sh
+        ./build.sh
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.version.outputs.VERSION }}
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.version.outputs.VERSION }}
+        name: AI Cart WebSocket v${{ steps.version.outputs.VERSION }}
+        body: |
+          ## AI Cart WebSocket v${{ steps.version.outputs.VERSION }}
+
+          Real-time WebSocket Push Service for AI Cart. Features JWT authentication, RabbitMQ integration, and HTTP Gateway API.
+
+          ### 🚀 Quick Start
+          1. **Download** the appropriate binary for your platform below
+          2. **Extract** the archive
+          3. **Configure**: Copy `.env.example` to `.env` and set `API_SECRET`
+          4. **Run**: Execute the binary
+
+          ### 📦 Downloads
+          - **Linux (amd64)**: `ai-cart-websocket-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz`
+          - **Windows (amd64)**: `ai-cart-websocket-${{ steps.version.outputs.VERSION }}-windows-amd64.zip`
+          - **macOS (Intel)**: `ai-cart-websocket-${{ steps.version.outputs.VERSION }}-darwin-amd64.tar.gz`
+          - **macOS (Apple Silicon)**: `ai-cart-websocket-${{ steps.version.outputs.VERSION }}-darwin-arm64.tar.gz`
+
+          ### ✨ Features
+          - ✅ JWT Authentication with Public Key verification
+          - ✅ RabbitMQ Consumer for event-driven messaging
+          - ✅ HTTP Gateway API (`POST /api/send`)
+          - ✅ Health Check (`GET /health`)
+          - ✅ Cross-platform support
+
+          ### 🔐 Checksums
+          See `checksums.txt` for SHA256 checksums of all binaries.
+
+          ### 📖 Documentation
+          See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for full documentation.
+        draft: false
+        prerelease: false
+        files: |
+          dist/ai-cart-websocket-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz
+          dist/ai-cart-websocket-${{ steps.version.outputs.VERSION }}-windows-amd64.zip
+          dist/ai-cart-websocket-${{ steps.version.outputs.VERSION }}-darwin-amd64.tar.gz
+          dist/ai-cart-websocket-${{ steps.version.outputs.VERSION }}-darwin-arm64.tar.gz
+          dist/checksums.txt
