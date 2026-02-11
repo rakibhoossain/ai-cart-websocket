@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -21,8 +22,50 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	// Start RabbitMQ Consumer in a goroutine
-	go mq.StartConsumer(cfg.RabbitMQURL, cfg.RabbitMQQueue, hub)
+	// Start RabbitMQ Consumer in a goroutine (Optional)
+	if cfg.RabbitMQURL != "" {
+		go mq.StartConsumer(cfg.RabbitMQURL, cfg.RabbitMQQueue, hub)
+	} else {
+		log.Println("RabbitMQ URL not set, skipping RabbitMQ consumer start")
+	}
+
+	// Health Check API
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	// Gateway API for sending messages via HTTP
+	http.HandleFunc("/api/send", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Validate Secret Key
+		secret := r.Header.Get("X-API-Secret")
+		if cfg.APISecret == "" || secret != cfg.APISecret {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		var msg mq.MqMessage
+		if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+
+		if msg.UserID == "" {
+			http.Error(w, "Missing user_id", http.StatusBadRequest)
+			return
+		}
+
+		// Push to Hub
+		hub.SendToUser(msg.UserID, msg.Data)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Message queued"))
+	})
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		// 1. Upgrade the connection immediately

@@ -60,6 +60,50 @@ go run cmd/producer/main.go -user "456" -type "user" -msg "Hello Admin 456"
 
 The service uses the `groups` claim from the JWT token to determine the entity type (`customer` or `user`) and prefixes it to the ID.
 
+## HTTP Gateway API (Optional RabbitMQ)
+
+**Health Check**:
+`GET /health` -> Returns `{"status":"ok"}` (200 OK)
+
+You can push messages directly via HTTP POST without RabbitMQ.
+
+**Endpoint**: `POST /api/send`
+**Headers**:
+- `X-API-Secret`: Your configured `API_SECRET` (in `.env`)
+- `Content-Type`: `application/json`
+
+**Body**:
+```json
+{
+  "user_id": "customer:1",
+  "data": "Your Hello Message"
+}
+```
+
+**Example Curl**:
+```bash
+curl -X POST http://localhost:8080/api/send \
+  -H "X-API-Secret: mysecuresecret" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "customer:1", "data": "Hello via API"}'
+```
+
+This makes RabbitMQ **optional**. If `RABBITMQ_URL` is not set in `.env`, the consumer will simply not start, and the service will rely solely on this API.
+
+## Chat Application Usage
+
+Yes, this service is perfect for building a **Real-time Chat App**.
+
+**Architecture:**
+1.  **Frontend (Next.js)**: User sends a chat message to your backend API (`/api/chat/send`).
+2.  **Backend (Java/Next.js)**:
+    -   Validates the message.
+    -   Saves it to the Database (Postgres/Mongo).
+    -   **Pushes** the message to the recipient using this WebSocket Service (via RabbitMQ or `POST /api/send`).
+3.  **WebSocket Service**: Delivers the message instantly to the recipient's active connection.
+
+This "Pusher-style" architecture decouples your chat logic/persistence from the real-time delivery mechanism.
+
 ## Next.js Integration Guide
 
 To integrate this WebSocket service with your Next.js application, follow these steps using Server Actions and Client Components.

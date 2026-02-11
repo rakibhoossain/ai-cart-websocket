@@ -12,6 +12,7 @@ type Config struct {
 	RabbitMQQueue string
 	JWTPublicKey  []byte
 	Port          string
+	APISecret     string
 }
 
 func Load() *Config {
@@ -33,10 +34,11 @@ func Load() *Config {
 	}
 
 	return &Config{
-		RabbitMQURL:   getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+		RabbitMQURL:   getEnv("RABBITMQ_URL", ""), // Made optional by removing default
 		RabbitMQQueue: getEnv("RABBITMQ_QUEUE", "notifications"),
 		JWTPublicKey:  pubKeyBytes,
 		Port:          getEnv("PORT", "8080"),
+		APISecret:     getEnv("API_SECRET", ""),
 	}
 }
 
