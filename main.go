@@ -96,42 +96,31 @@ func main() {
 			return
 		}
 
-		// Try to find user ID from various claims
+		// Get user ID from sub
 		var userID string
-
-		// 1. Try 'sub' (Standard Subject)
 		if sub, ok := claims["sub"].(string); ok {
 			userID = sub
 		}
 
-		// 2. Try 'user_id' (Custom)
-		if userID == "" {
-			if uid, ok := claims["user_id"].(string); ok {
-				userID = uid
-			}
+		// Get entity type from entityType claim
+		var entityType string
+		if entity, ok := claims["entityType"].(string); ok {
+			entityType = entity
 		}
 
-		// 3. Fallback to 'email' (UPN)
-		if userID == "" {
-			if email, ok := claims["email"].(string); ok {
-				userID = email
-			} else if upn, ok := claims["upn"].(string); ok {
-				userID = upn
-			}
+		var tokenType string
+		if claimType, ok := claims["type"].(string); ok {
+			tokenType = claimType
 		}
 
-		if userID == "" {
+		if userID == "" || entityType == "" || tokenType == "" {
 			closeWithPolicyViolation("Unauthorized: no user identifier found")
 			return
 		}
 
-		// Extract entity type from groups to distinguish between customer and admin users
-		// The Java backend sets "groups" claim to the entity type (e.g. "customer", "user") or roles
-		entityType := "default"
-		if groups, ok := claims["groups"].([]interface{}); ok && len(groups) > 0 {
-			if g, ok := groups[0].(string); ok {
-				entityType = g
-			}
+		if tokenType != "WEBSOCKET_AUTH" {
+			closeWithPolicyViolation("Unauthorized: invalid token type")
+			return
 		}
 
 		// Create a unique ID by combining entity type and ID
