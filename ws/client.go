@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -45,8 +46,14 @@ type Client struct {
 	userID string
 }
 
+// clientMessage is a control message the dashboard sends over WS to subscribe/unsubscribe.
+type clientMessage struct {
+	Action  string `json:"action"`  // "subscribe" | "unsubscribe"
+	Channel string `json:"channel"` // e.g. "shop:0195621e-..."
+}
+
 // readPump pumps messages from the websocket connection to the hub.
-// For server-push-only, this is mainly to keep the connection alive (pong).
+// Handles channel subscription control messages.
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
@@ -56,12 +63,25 @@ func (c *Client) readPump() {
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, _, err := c.conn.ReadMessage()
+		_, raw, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
+		}
+
+		// Try to parse as a control message
+		var msg clientMessage
+		if err := json.Unmarshal(raw, &msg); err == nil && msg.Action != "" && msg.Channel != "" {
+			switch msg.Action {
+			case "subscribe":
+				c.hub.SubscribeToChannel(c, msg.Channel)
+			case "unsubscribe":
+				c.hub.UnsubscribeFromChannel(c, msg.Channel)
+			default:
+				log.Printf("Unknown action from %s: %s", c.userID, msg.Action)
+			}
 		}
 	}
 }
@@ -109,7 +129,7 @@ func (c *Client) writePump() {
 }
 
 // ServeClient handles websocket requests from the peer.
-func ServeClient(hub *Hub, conn *websocket.Conn, userID string) {
+func ServeClient(hub *Hub, conn *websocket.Conn, userID string) *Client {
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), userID: userID}
 	client.hub.register <- client
 
@@ -117,4 +137,6 @@ func ServeClient(hub *Hub, conn *websocket.Conn, userID string) {
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+
+	return client
 }

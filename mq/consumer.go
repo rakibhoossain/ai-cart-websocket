@@ -9,8 +9,9 @@ import (
 )
 
 type MqMessage struct {
-	UserID string          `json:"user_id"`
-	Data   json.RawMessage `json:"data"`
+	UserID  string          `json:"user_id,omitempty"`
+	Channel string          `json:"channel,omitempty"`
+	Data    json.RawMessage `json:"data"`
 }
 
 func StartConsumer(url, queueName string, hub *ws.Hub) {

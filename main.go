@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -56,13 +57,15 @@ func main() {
 			return
 		}
 
-		if msg.UserID == "" {
-			http.Error(w, "Missing user_id", http.StatusBadRequest)
+		if msg.UserID != "" {
+			hub.SendToUser(msg.UserID, msg.Data)
+		} else if msg.Channel != "" {
+			hub.SendToChannel(msg.Channel, msg.Data)
+		} else {
+			http.Error(w, "Missing user_id or channel", http.StatusBadRequest)
 			return
 		}
 
-		// Push to Hub
-		hub.SendToUser(msg.UserID, msg.Data)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Message queued"))
 	})
@@ -129,6 +132,61 @@ func main() {
 
 		// 3. Register client with hub
 		ws.ServeClient(hub, conn, uniqueUserID)
+	})
+
+	// Channel-scoped WebSocket endpoint
+	// Clients connect to /ws/channel/{channel}?token=...
+	http.HandleFunc("/ws/channel/{channel}", func(w http.ResponseWriter, r *http.Request) {
+		channel := r.PathValue("channel")
+
+		fmt.Printf("channel Id %s", channel)
+		if channel == "" {
+			log.Println("Missing channel")
+			return
+		}
+
+		conn, err := ws.Upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Println("Upgrade error:", err)
+			return
+		}
+
+		closeWithPolicyViolation := func(reason string) {
+			log.Printf("[WS-CHANNEL] Closing connection: %s", reason)
+			msg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, reason)
+			conn.WriteMessage(websocket.CloseMessage, msg)
+			conn.Close()
+		}
+
+		tokenString := r.URL.Query().Get("token")
+		claims, err := auth.ValidateToken(tokenString)
+		if err != nil {
+			closeWithPolicyViolation("Unauthorized: invalid token")
+			return
+		}
+
+		// Get user ID from sub for client identity
+		var userID string
+		if sub, ok := claims["sub"].(string); ok {
+			userID = sub
+		}
+		var entityType string
+		if entity, ok := claims["entityType"].(string); ok {
+			entityType = entity
+		}
+
+		// We still require a valid user token to connect to channels
+		if userID == "" || entityType == "" {
+			closeWithPolicyViolation("Unauthorized: invalid user identity")
+			return
+		}
+
+		uniqueUserID := entityType + ":" + userID
+		log.Printf("[WS-CHANNEL] Client %s joining channel: %s", uniqueUserID, channel)
+
+		// Register and automatically subscribe
+		client := ws.ServeClient(hub, conn, uniqueUserID)
+		hub.SubscribeToChannel(client, channel)
 	})
 
 	log.Printf("Server started on port %s", cfg.Port)
