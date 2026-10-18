@@ -13,7 +13,7 @@ func TestJWTGenerationAndValidation(t *testing.T) {
 	req := TokenRequest{
 		EntityID:   "01931a23-4567-89ab-cdef-0123456789ab",
 		EntityType: "user",
-		TenantID:   "01931a23-4567-89ab-cdef-0123456789ac",
+		Channel:    "shop:01931a23-4567-89ab-cdef-0123456789ac",
 	}
 
 	res, err := GenerateToken(req)
@@ -39,8 +39,34 @@ func TestJWTGenerationAndValidation(t *testing.T) {
 	if claims["entityType"] != req.EntityType {
 		t.Errorf("Expected entityType %s, got %v", req.EntityType, claims["entityType"])
 	}
-	if claims["tenantId"] != req.TenantID {
-		t.Errorf("Expected tenantId %s, got %v", req.TenantID, claims["tenantId"])
+	if claims["channel"] != req.Channel {
+		t.Errorf("Expected channel %s, got %v", req.Channel, claims["channel"])
+	}
+}
+
+func TestJWTGenerationWithoutChannel(t *testing.T) {
+	secret := "test-secret-key-123456"
+	if err := InitJWT(secret); err != nil {
+		t.Fatalf("InitJWT failed: %v", err)
+	}
+
+	req := TokenRequest{
+		EntityID:   "01931a23-4567-89ab-cdef-0123456789ab",
+		EntityType: "user",
+	}
+
+	res, err := GenerateToken(req)
+	if err != nil {
+		t.Fatalf("GenerateToken failed: %v", err)
+	}
+
+	claims, err := ValidateToken(res.Token)
+	if err != nil {
+		t.Fatalf("ValidateToken failed: %v", err)
+	}
+
+	if _, ok := claims["channel"]; ok {
+		t.Errorf("Expected no channel claim, got %v", claims["channel"])
 	}
 }
 

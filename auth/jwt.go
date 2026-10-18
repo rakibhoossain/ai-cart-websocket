@@ -14,7 +14,7 @@ const DefaultTokenTTL = 1 * time.Minute
 type TokenRequest struct {
 	EntityID   string `json:"entity_id"`
 	EntityType string `json:"entity_type"`
-	TenantID   string `json:"tenant_id,omitempty"`
+	Channel    string `json:"channel,omitempty"`
 }
 
 type TokenResponse struct {
@@ -48,8 +48,8 @@ func GenerateToken(req TokenRequest) (*TokenResponse, error) {
 		"exp":        expiresAt.Unix(),
 	}
 
-	if req.TenantID != "" {
-		claims["tenantId"] = req.TenantID
+	if req.Channel != "" {
+		claims["channel"] = req.Channel
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

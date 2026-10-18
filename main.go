@@ -144,6 +144,12 @@ func main() {
 			entityType = entity
 		}
 
+		tokenChannel, _ := claims["channel"].(string)
+		if tokenChannel != "" {
+			closeWithPolicyViolation("Unauthorized: channel-scoped token cannot connect to /ws")
+			return
+		}
+
 		if userID == "" || entityType == "" {
 			closeWithPolicyViolation("Unauthorized: no user identifier found")
 			return
@@ -196,6 +202,12 @@ func main() {
 		var entityType string
 		if entity, ok := claims["entityType"].(string); ok {
 			entityType = entity
+		}
+
+		tokenChannel, _ := claims["channel"].(string)
+		if tokenChannel == "" || tokenChannel != channel {
+			closeWithPolicyViolation("Unauthorized: token not authorized for this channel")
+			return
 		}
 
 		// We still require a valid user token to connect to channels
