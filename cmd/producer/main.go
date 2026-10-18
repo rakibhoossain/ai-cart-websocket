@@ -10,24 +10,28 @@ import (
 )
 
 type MqMessage struct {
-	UserID string          `json:"user_id"`
-	Data   json.RawMessage `json:"data"`
+	Channel string          `json:"channel"`
+	Data    json.RawMessage `json:"data"`
 }
 
 func main() {
 	cfg := config.Load()
 
+	channelName := flag.String("channel", "", "Channel (e.g. user:123 or shop:456)")
 	userID := flag.String("user", "", "UserID (numeric ID usually)")
 	entityType := flag.String("type", "customer", "Entity Type (customer/user)")
 	message := flag.String("msg", "hello world", "Message content")
 	flag.Parse()
 
-	targetID := ""
-	if *userID != "" {
-		targetID = *entityType + ":" + *userID
-		log.Printf("Sending to target: %s", targetID)
+	targetChannel := *channelName
+	if targetChannel == "" && *userID != "" {
+		targetChannel = *entityType + ":" + *userID
+	}
+
+	if targetChannel != "" {
+		log.Printf("Sending to channel: %s", targetChannel)
 	} else {
-		log.Println("Note: No user ID specified, broadcasting message")
+		log.Fatal("Error: channel or user ID must be specified")
 	}
 
 	conn, err := amqp.Dial(cfg.RabbitMQURL)
@@ -56,8 +60,8 @@ func main() {
 
 	dataBytes, _ := json.Marshal(*message)
 	payload := MqMessage{
-		UserID: targetID,
-		Data:   dataBytes,
+		Channel: targetChannel,
+		Data:    dataBytes,
 	}
 
 	body, err := json.Marshal(payload)
