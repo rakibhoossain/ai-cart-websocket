@@ -101,7 +101,6 @@ func main() {
 		w.Write([]byte("Message queued"))
 	})
 
-
 	// Channel-scoped WebSocket endpoint
 	// Clients connect to /ws/channel/{channel}?token=...
 	http.HandleFunc("/ws/channel/{channel}", func(w http.ResponseWriter, r *http.Request) {
