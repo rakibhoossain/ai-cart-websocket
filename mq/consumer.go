@@ -9,8 +9,7 @@ import (
 )
 
 type MqMessage struct {
-	UserID  string          `json:"user_id,omitempty"`
-	Channel string          `json:"channel,omitempty"`
+	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 }
 
@@ -67,10 +66,10 @@ func StartConsumer(url, queueName string, hub *ws.Hub) {
 
 			log.Printf("Received message: %v", msg)
 
-			if msg.UserID != "" {
-				hub.SendToUser(msg.UserID, msg.Data)
+			if msg.Channel != "" {
+				hub.SendToChannel(msg.Channel, msg.Data)
 			} else {
-				log.Printf("Warning: Received message without UserID, ignoring: %s", msg.Data)
+				log.Printf("Warning: Received message without Channel, ignoring: %s", msg.Data)
 			}
 		}
 	}()

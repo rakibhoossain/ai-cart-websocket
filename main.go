@@ -90,78 +90,17 @@ func main() {
 			return
 		}
 
-		if msg.UserID != "" {
-			hub.SendToUser(msg.UserID, msg.Data)
-		} else if msg.Channel != "" {
-			hub.SendToChannel(msg.Channel, msg.Data)
-		} else {
-			http.Error(w, "Missing user_id or channel", http.StatusBadRequest)
+		if msg.Channel == "" {
+			http.Error(w, "Missing channel", http.StatusBadRequest)
 			return
 		}
+
+		hub.SendToChannel(msg.Channel, msg.Data)
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Message queued"))
 	})
 
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		// 1. Upgrade the connection immediately
-		conn, err := ws.Upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Println("Upgrade error:", err)
-			return
-		}
-
-		// Helper to close connection causing policy violation
-		closeWithPolicyViolation := func(reason string) {
-			log.Printf("Closing connection: %s", reason)
-			msg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, reason)
-			conn.WriteMessage(websocket.CloseMessage, msg)
-			conn.Close()
-		}
-
-		tokenString := r.URL.Query().Get("token")
-		if tokenString == "" {
-			closeWithPolicyViolation("Unauthorized: missing token")
-			return
-		}
-
-		// 2. Validate the token
-		claims, err := auth.ValidateToken(tokenString)
-		if err != nil {
-			closeWithPolicyViolation("Unauthorized: invalid token")
-			return
-		}
-
-		// Get user ID from sub
-		var userID string
-		if sub, ok := claims["sub"].(string); ok {
-			userID = sub
-		}
-
-		// Get entity type from entityType claim
-		var entityType string
-		if entity, ok := claims["entityType"].(string); ok {
-			entityType = entity
-		}
-
-		tokenChannel, _ := claims["channel"].(string)
-		if tokenChannel != "" {
-			closeWithPolicyViolation("Unauthorized: channel-scoped token cannot connect to /ws")
-			return
-		}
-
-		if userID == "" || entityType == "" {
-			closeWithPolicyViolation("Unauthorized: no user identifier found")
-			return
-		}
-
-		// Create a unique ID by combining entity type and ID
-		// e.g. "customer:123", "user:456"
-		uniqueUserID := entityType + ":" + userID
-
-		// 3. Register client with hub
-		ws.ServeClient(hub, conn, uniqueUserID)
-	})
 
 	// Channel-scoped WebSocket endpoint
 	// Clients connect to /ws/channel/{channel}?token=...

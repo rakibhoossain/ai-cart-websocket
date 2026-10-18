@@ -34,8 +34,8 @@ func GenerateToken(req TokenRequest) (*TokenResponse, error) {
 	if len(hmacSecret) == 0 {
 		return nil, fmt.Errorf("jwt secret not initialized")
 	}
-	if req.EntityID == "" || req.EntityType == "" {
-		return nil, fmt.Errorf("entity_id and entity_type are required")
+	if req.EntityID == "" || req.EntityType == "" || req.Channel == "" {
+		return nil, fmt.Errorf("entity_id, entity_type, and channel are required")
 	}
 
 	now := time.Now()
@@ -44,12 +44,9 @@ func GenerateToken(req TokenRequest) (*TokenResponse, error) {
 	claims := jwt.MapClaims{
 		"sub":        req.EntityID,
 		"entityType": req.EntityType,
+		"channel":    req.Channel,
 		"iat":        now.Unix(),
 		"exp":        expiresAt.Unix(),
-	}
-
-	if req.Channel != "" {
-		claims["channel"] = req.Channel
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

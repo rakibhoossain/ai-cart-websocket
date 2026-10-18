@@ -44,7 +44,7 @@ func TestJWTGenerationAndValidation(t *testing.T) {
 	}
 }
 
-func TestJWTGenerationWithoutChannel(t *testing.T) {
+func TestJWTGenerationWithoutChannelReturnsError(t *testing.T) {
 	secret := "test-secret-key-123456"
 	if err := InitJWT(secret); err != nil {
 		t.Fatalf("InitJWT failed: %v", err)
@@ -55,18 +55,9 @@ func TestJWTGenerationWithoutChannel(t *testing.T) {
 		EntityType: "user",
 	}
 
-	res, err := GenerateToken(req)
-	if err != nil {
-		t.Fatalf("GenerateToken failed: %v", err)
-	}
-
-	claims, err := ValidateToken(res.Token)
-	if err != nil {
-		t.Fatalf("ValidateToken failed: %v", err)
-	}
-
-	if _, ok := claims["channel"]; ok {
-		t.Errorf("Expected no channel claim, got %v", claims["channel"])
+	_, err := GenerateToken(req)
+	if err == nil {
+		t.Fatal("Expected error when channel is missing, got nil")
 	}
 }
 
