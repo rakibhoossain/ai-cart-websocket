@@ -10,9 +10,9 @@ import (
 type Config struct {
 	RabbitMQURL   string
 	RabbitMQQueue string
-	JWTPublicKey  []byte
 	Port          string
 	APISecret     string
+	JWTSecret     string
 }
 
 func Load() *Config {
@@ -21,24 +21,18 @@ func Load() *Config {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	pubKeyPath := getEnv("JWT_PUBLIC_KEY_PATH", "public.pem")
-	pubKeyBytes, err := os.ReadFile(pubKeyPath)
-	if err != nil {
-		// Try to read from env var directly if file not found
-		pubKeyContent := getEnv("JWT_PUBLIC_KEY", "")
-		if pubKeyContent != "" {
-			pubKeyBytes = []byte(pubKeyContent)
-		} else {
-			log.Fatalf("Fatal: Could not load public key from %s or JWT_PUBLIC_KEY env", pubKeyPath)
-		}
+	apiSecret := getEnv("API_SECRET", "")
+	jwtSecret := getEnv("JWT_SECRET", apiSecret)
+	if jwtSecret == "" {
+		log.Fatal("Fatal: Either JWT_SECRET or API_SECRET must be configured")
 	}
 
 	return &Config{
 		RabbitMQURL:   getEnv("RABBITMQ_URL", ""), // Made optional by removing default
 		RabbitMQQueue: getEnv("RABBITMQ_QUEUE", "notifications"),
-		JWTPublicKey:  pubKeyBytes,
 		Port:          getEnv("PORT", "8080"),
-		APISecret:     getEnv("API_SECRET", ""),
+		APISecret:     apiSecret,
+		JWTSecret:     jwtSecret,
 	}
 }
 

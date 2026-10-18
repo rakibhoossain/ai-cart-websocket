@@ -52,12 +52,11 @@ Quick Start:
    - PORT=8080
    - RABBITMQ_URL (Optional)
    - API_SECRET (for HTTP API)
+   - JWT_SECRET (for WebSocket JWT authentication)
 
 2. Run the program:
    - Linux/macOS: ./ai-cart-websocket-{platform}-{arch}
    - Windows: ai-cart-websocket-windows-amd64.exe
-
-3. Service will verify public key on startup.
 
 For detailed documentation, see:
 https://github.com/rakibhoossain/ai-cart-websocket

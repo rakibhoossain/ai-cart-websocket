@@ -6,7 +6,7 @@ This service provides a WebSocket server that pushes notifications to connected 
 
 - **WebSocket Server**: Uses `gorilla/websocket` for handling connections.
 - **RabbitMQ Consumer**: Listens for events from RabbitMQ and pushes them to clients.
-- **JWT Authentication**: Validates RSA-signed JWT tokens using a public key.
+- **JWT Authentication**: Signs and validates HMAC-SHA256 (HS256) JWT tokens using a JWT secret.
 - **Entity Differentiation**: Distinguishes between `customer` and `user` (admin) by prefixing IDs (e.g., `customer:1`, `user:1`).
 - **Targeted Push**: Can send messages to a specific user based on their entity type and ID.
 
@@ -14,7 +14,6 @@ This service provides a WebSocket server that pushes notifications to connected 
 
 - Go 1.20+
 - RabbitMQ running locally or remotely.
-- `public.pem`: An RSA Public Key file (extracted from `ai-cart-api`) must be present in the root directory.
 
 ## Configuration
 
@@ -24,7 +23,8 @@ The service is configured using environment variables or `.env` file.
 |---|---|---|
 | `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672/` | RabbitMQ connection URL |
 | `RABBITMQ_QUEUE` | `notifications` | Name of the queue to consume from |
-| `JWT_PUBLIC_KEY_PATH` | `public.pem` | Path to the RSA Public Key file |
+| `API_SECRET` | - | Secret key for HTTP Gateway API (`/api/send`, `/api/token`) |
+| `JWT_SECRET` | Falls back to `API_SECRET` | HMAC secret for issuing and validating WebSocket JWTs |
 | `PORT` | `8080` | Port to listen on |
 
 ## Running the Service

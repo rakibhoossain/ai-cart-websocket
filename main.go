@@ -16,8 +16,8 @@ import (
 func main() {
 	cfg := config.Load()
 
-	if err := auth.LoadPublicKey(cfg.JWTPublicKey); err != nil {
-		log.Fatalf("Failed to load public key: %v", err)
+	if err := auth.InitJWT(cfg.JWTSecret); err != nil {
+		log.Fatalf("Failed to initialize JWT: %v", err)
 	}
 
 	hub := ws.NewHub()
@@ -31,10 +31,43 @@ func main() {
 	}
 
 	// Health Check API
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	rootHandler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok"}`))
+	}
+	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/health", rootHandler)
+
+	// Gateway API for generating tokens via HTTP
+	http.HandleFunc("/api/token", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Validate Secret Key
+		secret := r.Header.Get("X-API-Secret")
+		if cfg.APISecret == "" || secret != cfg.APISecret {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		var req auth.TokenRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Bad Request: invalid payload", http.StatusBadRequest)
+			return
+		}
+
+		res, err := auth.GenerateToken(req)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to generate token: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(res)
 	})
 
 	// Gateway API for sending messages via HTTP
@@ -111,18 +144,8 @@ func main() {
 			entityType = entity
 		}
 
-		var tokenType string
-		if claimType, ok := claims["type"].(string); ok {
-			tokenType = claimType
-		}
-
-		if userID == "" || entityType == "" || tokenType == "" {
+		if userID == "" || entityType == "" {
 			closeWithPolicyViolation("Unauthorized: no user identifier found")
-			return
-		}
-
-		if tokenType != "WEBSOCKET_AUTH" {
-			closeWithPolicyViolation("Unauthorized: invalid token type")
 			return
 		}
 
