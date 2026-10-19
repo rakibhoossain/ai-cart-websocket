@@ -12,9 +12,7 @@ var hmacSecret []byte
 const DefaultTokenTTL = 1 * time.Minute
 
 type TokenRequest struct {
-	EntityID   string `json:"entity_id"`
-	EntityType string `json:"entity_type"`
-	Channel    string `json:"channel,omitempty"`
+	Channel string `json:"channel"`
 }
 
 type TokenResponse struct {
@@ -34,19 +32,17 @@ func GenerateToken(req TokenRequest) (*TokenResponse, error) {
 	if len(hmacSecret) == 0 {
 		return nil, fmt.Errorf("jwt secret not initialized")
 	}
-	if req.EntityID == "" || req.EntityType == "" || req.Channel == "" {
-		return nil, fmt.Errorf("entity_id, entity_type, and channel are required")
+	if req.Channel == "" {
+		return nil, fmt.Errorf("channel is required")
 	}
 
 	now := time.Now()
 	expiresAt := now.Add(DefaultTokenTTL)
 
 	claims := jwt.MapClaims{
-		"sub":        req.EntityID,
-		"entityType": req.EntityType,
-		"channel":    req.Channel,
-		"iat":        now.Unix(),
-		"exp":        expiresAt.Unix(),
+		"sub": req.Channel,
+		"iat": now.Unix(),
+		"exp": expiresAt.Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

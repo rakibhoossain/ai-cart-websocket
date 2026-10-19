@@ -11,9 +11,7 @@ func TestJWTGenerationAndValidation(t *testing.T) {
 	}
 
 	req := TokenRequest{
-		EntityID:   "01931a23-4567-89ab-cdef-0123456789ab",
-		EntityType: "user",
-		Channel:    "shop:01931a23-4567-89ab-cdef-0123456789ac",
+		Channel: "shop:01931a23-4567-89ab-cdef-0123456789ac",
 	}
 
 	res, err := GenerateToken(req)
@@ -33,14 +31,8 @@ func TestJWTGenerationAndValidation(t *testing.T) {
 		t.Fatalf("ValidateToken failed: %v", err)
 	}
 
-	if claims["sub"] != req.EntityID {
-		t.Errorf("Expected sub %s, got %v", req.EntityID, claims["sub"])
-	}
-	if claims["entityType"] != req.EntityType {
-		t.Errorf("Expected entityType %s, got %v", req.EntityType, claims["entityType"])
-	}
-	if claims["channel"] != req.Channel {
-		t.Errorf("Expected channel %s, got %v", req.Channel, claims["channel"])
+	if claims["sub"] != req.Channel {
+		t.Errorf("Expected sub %s, got %v", req.Channel, claims["sub"])
 	}
 }
 
@@ -51,8 +43,7 @@ func TestJWTGenerationWithoutChannelReturnsError(t *testing.T) {
 	}
 
 	req := TokenRequest{
-		EntityID:   "01931a23-4567-89ab-cdef-0123456789ab",
-		EntityType: "user",
+		Channel: "",
 	}
 
 	_, err := GenerateToken(req)
