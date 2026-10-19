@@ -47,7 +47,7 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.clients[client] = true
-			log.Printf("Client registered: %s", client.userID)
+			log.Printf("Client registered for channel: %s", client.channel)
 
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
@@ -63,7 +63,7 @@ func (h *Hub) Run() {
 					}
 				}
 				h.channelsMu.Unlock()
-				log.Printf("Client unregistered: %s", client.userID)
+				log.Printf("Client unregistered from channel: %s", client.channel)
 			}
 
 		case message := <-h.broadcast:
@@ -112,7 +112,7 @@ func (h *Hub) SubscribeToChannel(client *Client, channel string) {
 		h.channels[channel] = make(map[*Client]bool)
 	}
 	h.channels[channel][client] = true
-	log.Printf("Client %s subscribed to channel: %s", client.userID, channel)
+	log.Printf("Client subscribed to channel: %s", channel)
 }
 
 // UnsubscribeFromChannel removes a client from a named channel.
@@ -124,6 +124,6 @@ func (h *Hub) UnsubscribeFromChannel(client *Client, channel string) {
 		if len(subs) == 0 {
 			delete(h.channels, channel)
 		}
-		log.Printf("Client %s unsubscribed from channel: %s", client.userID, channel)
+		log.Printf("Client unsubscribed from channel: %s", channel)
 	}
 }

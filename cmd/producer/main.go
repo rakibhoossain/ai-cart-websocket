@@ -7,32 +7,25 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rakib/go-websocket-service/config"
+	"github.com/rakib/go-websocket-service/mq"
 )
-
-type MqMessage struct {
-	Channel string          `json:"channel"`
-	Data    json.RawMessage `json:"data"`
-}
 
 func main() {
 	cfg := config.Load()
 
-	channelName := flag.String("channel", "", "Channel (e.g. user:123 or shop:456)")
-	userID := flag.String("user", "", "UserID (numeric ID usually)")
-	entityType := flag.String("type", "customer", "Entity Type (customer/user)")
-	message := flag.String("msg", "hello world", "Message content")
+	channelName := flag.String("channel", "", "Target channel (e.g. user:123 or shop:456)")
+	message := flag.String("msg", "hello world", "Message content (plain text or JSON)")
 	flag.Parse()
 
-	targetChannel := *channelName
-	if targetChannel == "" && *userID != "" {
-		targetChannel = *entityType + ":" + *userID
+	if *channelName == "" {
+		log.Fatal("Error: -channel must be specified (e.g. -channel=user:123)")
 	}
 
-	if targetChannel != "" {
-		log.Printf("Sending to channel: %s", targetChannel)
-	} else {
-		log.Fatal("Error: channel or user ID must be specified")
+	if cfg.RabbitMQURL == "" {
+		log.Fatal("Error: RABBITMQ_URL is not configured in environment or .env")
 	}
+
+	log.Printf("Sending to channel: %s", *channelName)
 
 	conn, err := amqp.Dial(cfg.RabbitMQURL)
 	if err != nil {
@@ -58,9 +51,17 @@ func main() {
 		log.Fatalf("Failed to declare a queue: %v", err)
 	}
 
-	dataBytes, _ := json.Marshal(*message)
-	payload := MqMessage{
-		Channel: targetChannel,
+	// If message is valid JSON, pass as raw JSON; otherwise, marshal as JSON string
+	var dataBytes json.RawMessage
+	if json.Valid([]byte(*message)) {
+		dataBytes = json.RawMessage(*message)
+	} else {
+		marshaled, _ := json.Marshal(*message)
+		dataBytes = marshaled
+	}
+
+	payload := mq.MqMessage{
+		Channel: *channelName,
 		Data:    dataBytes,
 	}
 

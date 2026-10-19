@@ -43,7 +43,7 @@ type Client struct {
 	// Buffered channel of outbound messages.
 	send chan []byte
 
-	userID string
+	channel string
 }
 
 // clientMessage is a control message the dashboard sends over WS to subscribe/unsubscribe.
@@ -80,7 +80,7 @@ func (c *Client) readPump() {
 			case "unsubscribe":
 				c.hub.UnsubscribeFromChannel(c, msg.Channel)
 			default:
-				log.Printf("Unknown action from %s: %s", c.userID, msg.Action)
+				log.Printf("Unknown action on channel %s: %s", c.channel, msg.Action)
 			}
 		}
 	}
@@ -128,9 +128,10 @@ func (c *Client) writePump() {
 	}
 }
 
-// ServeClient handles websocket requests from the peer.
-func ServeClient(hub *Hub, conn *websocket.Conn, userID string) *Client {
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), userID: userID}
+// ServeClient handles websocket requests from the peer and subscribes to channel.
+func ServeClient(hub *Hub, conn *websocket.Conn, channel string) *Client {
+	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), channel: channel}
+	hub.SubscribeToChannel(client, channel)
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in

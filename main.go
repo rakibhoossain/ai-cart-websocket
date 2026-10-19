@@ -134,8 +134,7 @@ func main() {
 		log.Printf("[WS] Client connected to channel: %s", channel)
 
 		// Register and automatically subscribe
-		client := ws.ServeClient(hub, conn, channel)
-		hub.SubscribeToChannel(client, channel)
+		ws.ServeClient(hub, conn, channel)
 	})
 
 	log.Printf("Server started on port %s", cfg.Port)
